@@ -28,6 +28,8 @@ environment variables:
   QUARTO_RENDER_OUTPUT_DIR      Relative path to the output directory of the template project
 ```
 
+You might wish to add this tool to your system PATH for easier access.
+
 ### Setting Up Environment Variables
 
 To set up the environment variables, execute the following commands in your terminal:
@@ -37,8 +39,6 @@ export QUARTO_RENDER_PROJECT_DIR="/path/to/your/quarto/project"
 export QUARTO_RENDER_OUTPUT_DIR="_output"
 ```
 
-For convenience, you may add these commands to your shell profile (e.g., `.bashrc`).
-
 Or, on Windows Command Prompt:
 
 ```cmd
@@ -46,7 +46,7 @@ set QUARTO_RENDER_PROJECT_DIR="C:\path\to\your\quarto\project"
 set QUARTO_RENDER_OUTPUT_DIR="_output"
 ```
 
-For convenience, you may add them to your system environment variables.
+You might wish to add them to your system environment variables.
 
 ## Building Executable
 
