@@ -9,19 +9,20 @@ Python virtual environment in the specified Quarto project directory will be aut
 ## Usage
 
 ```
-usage: quarto-render [-h] [-r RESOURCES] document [quarto_args ...]
+usage: quarto-render [-h] [-r RESOURCES] document
 
 Render independent Quarto documents as if they were within a Quarto project.
 
 positional arguments:
   document              Path to the Quarto document to render
-  quarto_args           Additional arguments to pass to quarto render
 
 options:
   -h, --help            show this help message and exit
   -r, --resources RESOURCES
-                        Path to resources (e.g., images, bibliography files) to be copied alongside the document. Can  
-                        be used multiple times. Supports glob patterns.
+                        Path to resources (e.g., images, bibliography files) to be copied alongside the document. Can be used  
+                        multiple times. Supports glob patterns.
+
+unrecognized arguments are passed to quarto render.
 
 environment variables:
   QUARTO_RENDER_PROJECT_DIR     Path to the template Quarto project directory
