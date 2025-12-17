@@ -2,7 +2,13 @@
 
 A command line tool to let you render independent Quarto documents as if they were within a Quarto project.
 
-`quarto-render` will first ask you to provide a Quarto project directory and its associated output directory in environment variables. After that, executing `quarto-render` with a Quarto document path will copy the document to the specified project directory, render it there, and then move the rendered output back to the original directory.
+- `quarto-render` will first ask you to provide a Quarto project directory and its associated output directory in environment variables.
+
+- Once set up, executing `quarto-render` with a Quarto document path will copy the document to the specified project directory, along with any specified resources, with respect to their path relative to the current working directory.
+
+- Then `quarto render` is executed within the project directory.
+
+- Finally `quarto-render` moves the rendered output back to the current working directory, with respect to the output directory structure.
 
 Python virtual environment in the specified Quarto project directory will be automatically detected and activated during rendering.
 

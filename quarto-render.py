@@ -7,6 +7,27 @@ import sys
 from pathlib import Path
 
 
+def get_relative_path(file_path: Path, root_dir: Path) -> Path:
+    """
+    Get the relative path of a file from the root directory.
+    Raises an error if the file is outside the root directory.
+    
+    Args:
+        file_path: Absolute path to the file
+        root_dir: Absolute path to the root directory
+        
+    Returns:
+        Relative path from root_dir to file_path
+        
+    Raises:
+        ValueError: If file_path is outside root_dir
+    """
+    try:
+        return file_path.relative_to(root_dir)
+    except ValueError:
+        raise ValueError(f"File '{file_path}' is outside the root directory '{root_dir}'")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog='quarto-render',
@@ -65,8 +86,11 @@ environment variables:
     # Setup paths
     project_dir = Path(project_dir_str).resolve()
     orig_dir = Path.cwd()
-    source_dir = source_file.parent
-    filename = source_file.name
+    
+    # Calculate relative path of source file from current directory
+    source_file_rel = get_relative_path(source_file, orig_dir)
+
+    source_dir = orig_dir
     
     # Check if project directory exists
     if not project_dir.exists():
@@ -80,35 +104,45 @@ environment variables:
             resource_found = False
             # Always use glob for matching (handles both wildcards and literal paths)
             for match in glob.glob(resource, recursive=True):
-                match_path = Path(match)
+                match_path = Path(match).resolve()
                 # Only collect files, ignore directories
                 if match_path.is_file():
-                    matches.add(str(match_path.resolve()))
+                    rel_path = get_relative_path(match_path, source_dir)
+                    
+                    # Check if the file is inside the output directory
+                    try:
+                        rel_path.relative_to(output_dir_str)
+                        print(f"Ignoring resource '{rel_path}' inside output directory", file=sys.stderr)
+                        continue
+                    except ValueError:
+                        # File is not inside output directory, proceed normally
+                        pass
+                    
+                    matches.add(str(rel_path))
                     resource_found = True
             
             if not resource_found:
                 print(f"Warning: Resource '{resource}' does not match any files, skipping", file=sys.stderr)
     
     # Add document to matches
-    matches.add(str(source_file.resolve()))
+    matches.add(str(source_file_rel))
     
     # Check for collisions before copying any files
-    for match in matches:
-        match_path = Path(match)
-        match_filename = match_path.name
-        
+    for rel_path in matches:
         # Check for collision with existing files in project directory
-        target_resource_path = project_dir / match_filename
+        target_resource_path = project_dir / rel_path
         if target_resource_path.exists():
-            print(f"Error: File '{match_filename}' already exists in project directory '{project_dir}'", file=sys.stderr)
+            print(f"Error: File '{rel_path}' already exists in project directory '{project_dir}'", file=sys.stderr)
             sys.exit(1)
     
     # Copy all files (document and resources)
-    for match in matches:
-        match_path = Path(match)
-        target_resource_path = project_dir / match_path.name
-        print(f"Copying '{match_path}' to '{project_dir}/'")
-        shutil.copy2(match_path, target_resource_path)
+    for rel_path in matches:
+        source_path = source_dir / rel_path
+        target_resource_path = project_dir / rel_path
+        # Create parent directories if needed
+        target_resource_path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Copying '{source_path}' to '{target_resource_path}'")
+        shutil.copy2(source_path, target_resource_path)
     
     try:
         # Change to project directory
@@ -158,7 +192,7 @@ environment variables:
             
             print(f"Using Python virtual environment: {venv_path}")
         
-        quarto_cmd = ['quarto', 'render', filename] + args.quarto_args
+        quarto_cmd = ['quarto', 'render', str(source_file_rel)] + args.quarto_args
         print(f"Executing: {' '.join(quarto_cmd)}")
         result = subprocess.run(quarto_cmd, env=env, capture_output=False)
         
@@ -190,12 +224,19 @@ environment variables:
     finally:
         # Clean up: delete all copied files (document and resources) from project directory
         print("Cleaning up copied files from project directory")
-        for match in matches:
-            match_path = Path(match)
-            target_resource = project_dir / match_path.name
+        for rel_path in matches:
+            target_resource = project_dir / rel_path
             if target_resource.exists() and target_resource.is_file():
-                print(f"Deleting '{match_path.name}' from project directory")
+                print(f"Deleting '{rel_path}' from project directory")
                 target_resource.unlink()
+        
+        # Remove empty directories created during copy
+        for rel_path in matches:
+            target_dir = (project_dir / rel_path).parent
+            # Only remove if it's a subdirectory we created and it's now empty
+            if target_dir != project_dir and target_dir.exists() and not any(target_dir.iterdir()):
+                print(f"Removing empty directory '{target_dir.relative_to(project_dir)}'")
+                target_dir.rmdir()
         
         # Always return to original directory
         os.chdir(orig_dir)
