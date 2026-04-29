@@ -1,0 +1,66 @@
+name: PyInstaller Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact: quarto-render-ubuntu
+            ext: ''
+          - os: windows-latest
+            artifact: quarto-render-windows.exe
+            ext: '.exe'
+          - os: macos-latest
+            artifact: quarto-render-macos
+            ext: ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller --onefile --name quarto-render quarto-render.py
+
+      - name: Rename binary for release
+        run: mv dist/quarto-render${{ matrix.ext }} dist/${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: ${{ inputs.version }}
+          files: dist/*
