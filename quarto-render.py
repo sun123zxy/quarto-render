@@ -1,5 +1,4 @@
 import argparse
-import glob
 import os
 import shutil
 import subprocess
@@ -31,6 +30,7 @@ def get_relative_path(file_path: Path, root_dir: Path) -> Path:
 def main():
     parser = argparse.ArgumentParser(
         prog='quarto-render',
+        usage='%(prog)s [-h] document [-r RESOURCE [RESOURCE ...]] [quarto options]',
         description="Render independent Quarto documents as if they were within a Quarto project.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -44,8 +44,10 @@ environment variables:
     
     parser.add_argument(
         '-r', '--resources',
-        action='append',
-        help='Path to resources (e.g., images, bibliography files) to be copied alongside the document. Can be used multiple times. Supports glob patterns.'
+        action='extend',
+        nargs='+',
+        metavar='RESOURCE',
+        help='Paths to resources (e.g., images or bibliography files) to copy alongside the document. Accept multiple files and shell-supported glob patterns.'
     )
     
     parser.add_argument(
@@ -97,32 +99,31 @@ environment variables:
         print(f"Error: Project directory '{project_dir}' does not exist", file=sys.stderr)
         sys.exit(1)
 
-    # Collect all files to copy using glob
+    # Collect all resource files. Any glob expansion is performed by the shell
+    # before this program starts.
     matches = set()
     if args.resources:
         for resource in args.resources:
-            resource_found = False
-            # Always use glob for matching (handles both wildcards and literal paths)
-            for match in glob.glob(resource, recursive=True):
-                match_path = Path(match).resolve()
-                # Only collect files, ignore directories
-                if match_path.is_file():
-                    rel_path = get_relative_path(match_path, source_dir)
-                    
-                    # Check if the file is inside the output directory
-                    try:
-                        rel_path.relative_to(output_dir_str)
-                        print(f"Ignoring resource '{rel_path}' inside output directory", file=sys.stderr)
-                        continue
-                    except ValueError:
-                        # File is not inside output directory, proceed normally
-                        pass
-                    
-                    matches.add(str(rel_path))
-                    resource_found = True
-            
-            if not resource_found:
-                print(f"Warning: Resource '{resource}' does not match any files, skipping", file=sys.stderr)
+            resource_path = Path(resource).resolve()
+            if not resource_path.exists():
+                print(f"Warning: Resource '{resource}' does not exist, skipping", file=sys.stderr)
+                continue
+            if not resource_path.is_file():
+                print(f"Warning: Resource '{resource}' is not a file, skipping", file=sys.stderr)
+                continue
+
+            rel_path = get_relative_path(resource_path, source_dir)
+
+            # Check if the file is inside the output directory
+            try:
+                rel_path.relative_to(output_dir_str)
+                print(f"Ignoring resource '{rel_path}' inside output directory", file=sys.stderr)
+                continue
+            except ValueError:
+                # File is not inside output directory, proceed normally
+                pass
+
+            matches.add(str(rel_path))
     
     # Add document to matches
     matches.add(str(source_file_rel))

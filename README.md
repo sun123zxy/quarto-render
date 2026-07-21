@@ -15,7 +15,7 @@ Python virtual environment in the specified Quarto project directory will be aut
 ## Usage
 
 ```
-usage: quarto-render [-h] [-r RESOURCES] document
+usage: quarto-render [-h] document [-r RESOURCE [RESOURCE ...]] [quarto options]
 
 Render independent Quarto documents as if they were within a Quarto project.
 
@@ -24,9 +24,9 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -r, --resources RESOURCES
-                        Path to resources (e.g., images, bibliography files) to be copied alongside the document. Can be used  
-                        multiple times. Supports glob patterns.
+  -r, --resources RESOURCE [RESOURCE ...]
+                        Paths to resources (e.g., images or bibliography files) to copy alongside the document. Shell-expanded
+                        paths are accepted, and the option can be used multiple times.
 
 unrecognized arguments are passed to quarto render.
 
@@ -36,6 +36,34 @@ environment variables:
 ```
 
 You might wish to add this tool to your system PATH for easier access.
+
+### Resources and shell expansion
+
+`quarto-render` accepts one or more file paths after `-r`. It does not expand glob patterns itself. On shells that perform glob expansion, such as Bash and Zsh, leave the pattern unquoted so the shell passes the matching files to `quarto-render`:
+
+```bash
+quarto-render slide.qmd -r img/*
+```
+
+The document must appear before a multi-value `-r` option. Otherwise, `-r` will consume the document path as another resource. The option may also be repeated:
+
+```bash
+quarto-render slide.qmd -r img/a.jpg img/b.jpg -r references.bib
+```
+
+Options not recognized by `quarto-render` are passed to Quarto:
+
+```bash
+quarto-render slide.qmd -r img/* --toc --format revealjs
+```
+
+PowerShell and Command Prompt do not normally expand wildcards for native programs. In PowerShell, expand the files explicitly:
+
+```powershell
+quarto-render slide.qmd -r (Get-ChildItem -File img/*).FullName
+```
+
+In Command Prompt, list the resource paths explicitly.
 
 ### Setting Up Environment Variables
 
